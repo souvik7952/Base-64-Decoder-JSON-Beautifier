@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Base64 Decoder</title>
+  <style>
+    /* ─── CSS Custom Properties ─── */
+    :root {
+      --bg:           #0f1117;
+      --surface:      #1a1d27;
+      --surface2:     #22263a;
+      --border:       #2e3350;
+      --accent:       #5b8dee;
+      --accent-glow:  rgba(91,141,238,0.18);
+      --accent2:      #43d9ad;
+      --danger:       #ff6b6b;
+      --warn:         #f7c94b;
+      --text:         #e4e8f7;
+      --text-muted:   #7b84a8;
+      --radius:       12px;
+      --radius-sm:    8px;
+      --shadow:       0 4px 32px rgba(0,0,0,0.45);
+      --font-mono:    'Courier New', Courier, monospace;
+      --font-ui:      'Segoe UI', system-ui, sans-serif;
+      --transition:   0.22s ease;
+    }
+    [data-theme="light"] {
+      --bg:           #f0f2fa;
+      --surface:      #ffffff;
+      --surface2:     #eef0fb;
+      --border:       #d0d6f0;
+      --accent:       #3a6de0;
+      --accent-glow:  rgba(58,109,224,0.12);
+      --accent2:      #1aab7c;
+      --danger:       #d94f4f;
+      --warn:         #c49a00;
+      --text:         #1a1f3a;
+      --text-muted:   #6b74a0;
+      --shadow:       0 4px 24px rgba(80,90,160,0.12);
+    }
+
+    /* ─── Reset & Base ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      min-height: 100vh;
+      transition: background var(--transition), color var(--transition);
+      line-height: 1.6;
+    }
+
+    /* ─── Scrollbar ─── */
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: var(--surface2); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+    /* ─── Layout ─── */
+    .app-wrapper {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 28px 18px 60px;
+    }
+
+    /* ─── Header ─── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-icon {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 18px var(--accent-glow);
+      flex-shrink: 0;
+    }
+    .logo-text h1 {
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .logo-text p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    /* ─── Theme toggle ─── */
+    #themeToggle {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 7px 18px 7px 14px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      display: flex; align-items: center; gap: 7px;
+      transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
+      font-family: var(--font-ui);
+    }
+    #themeToggle:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    /* ─── Card ─── */
+    .card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px 24px;
+      margin-bottom: 20px;
+      transition: border-color var(--transition), background var(--transition);
+    }
+    .card-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+      display: flex; align-items: center; gap: 7px;
+    }
+    .card-title span { font-size: 0.9rem; }
+
+    /* ─── Textarea ─── */
+    textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.84rem;
+      padding: 14px;
+      resize: vertical;
+      min-height: 170px;
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+      line-height: 1.65;
+    }
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    textarea[readonly] { cursor: default; }
+    textarea::placeholder { color: var(--text-muted); opacity: 0.7; }
+
+    /* ─── File upload ─── */
+    .file-upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-sm);
+      padding: 20px 18px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color var(--transition), background var(--transition);
+      background: var(--surface2);
+      color: var(--text-muted);
+      font-size: 0.86rem;
+      margin-top: 12px;
+    }
+    .file-upload-zone:hover, .file-upload-zone.drag-over {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+      color: var(--accent);
+    }
+    .file-upload-zone .upload-icon { font-size: 1.6rem; margin-bottom: 6px; display: block; }
+    #fileInput { display: none; }
+    .file-info {
+      display: none;
+      margin-top: 10px;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      align-items: center;
+      gap: 8px;
+    }
+    .file-info.visible { display: flex; }
+    .file-info-name {
+      color: var(--text);
+      font-weight: 600;
+      word-break: break-all;
+      flex: 1;
+    }
+    .file-info-size {
+      background: var(--border);
+      border-radius: 99px;
+      padding: 2px 9px;
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+
+    /* ─── Char count ─── */
+    .char-count {
+      text-align: right;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* ─── Buttons ─── */
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+      align-items: center;
+    }
+    button {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 18px;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid transparent;
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition);
+      font-family: var(--font-ui);
+      outline: none;
+      white-space: nowrap;
+    }
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #4a79d4);
+      color: #fff;
+      box-shadow: 0 2px 14px var(--accent-glow);
+    }
+    .btn-primary:not(:disabled):hover {
+      filter: brightness(1.12);
+      box-shadow: 0 4px 20px var(--accent-glow);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .btn-secondary:not(:disabled):hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+    .btn-success {
+      background: var(--surface2);
+      color: var(--accent2);
+      border-color: var(--accent2);
+    }
+    .btn-success:not(:disabled):hover {
+      background: rgba(67,217,173,0.1);
+      box-shadow: 0 0 12px rgba(67,217,173,0.2);
+    }
+    .btn-danger {
+      background: var(--surface2);
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+    .btn-danger:not(:disabled):hover {
+      background: rgba(255,107,107,0.1);
+    }
+
+    /* ─── Loading bar ─── */
+    .loading-bar-wrap {
+      display: none;
+      margin-top: 14px;
+      background: var(--surface2);
+      border-radius: 99px;
+      height: 5px;
+      overflow: hidden;
+    }
+    .loading-bar-wrap.visible { display: block; }
+    .loading-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 99px;
+      animation: loadPulse 1.2s ease-in-out infinite;
+      width: 45%;
+    }
+    @keyframes loadPulse {
+      0%   { margin-left: -50%; }
+      100% { margin-left: 105%; }
+    }
+
+    /* ─── Status / error message ─── */
+    .status-msg {
+      display: none;
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.83rem;
+      font-weight: 500;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-msg.visible { display: flex; }
+    .status-msg.error   { background: rgba(255,107,107,0.12); border: 1.5px solid var(--danger); color: var(--danger); }
+    .status-msg.success { background: rgba(67,217,173,0.10); border: 1.5px solid var(--accent2); color: var(--accent2); }
+    .status-msg.warn    { background: rgba(247,201,75,0.10); border: 1.5px solid var(--warn); color: var(--warn); }
+
+    /* ─── Output area ─── */
+    #outputArea {
+      min-height: 200px;
+      max-height: 500px;
+    }
+
+    /* ─── Divider ─── */
+    .divider {
+      border: none;
+      border-top: 1.5px solid var(--border);
+      margin: 6px 0 18px;
+    }
+
+    /* ─── Toast ─── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      right: 24px;
+      background: var(--surface);
+      border: 1.5px solid var(--accent);
+      color: var(--text);
+      padding: 11px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      font-weight: 500;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity 0.28s ease, transform 0.28s ease;
+      z-index: 999;
+      pointer-events: none;
+      max-width: 320px;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 600px) {
+      .app-wrapper { padding: 16px 10px 48px; }
+      .card { padding: 16px 14px; }
+      .btn-row { gap: 8px; }
+      button { padding: 8px 13px; font-size: 0.80rem; }
+      header { margin-bottom: 22px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-wrapper">
+
+  <!-- ── Header ── -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">⚙</div>
+      <div class="logo-text">
+        <h1>Base64 Decoder</h1>
+        <p>Decode, beautify, and download — all in one place</p>
+      </div>
+    </div>
+    <button id="themeToggle" onclick="toggleTheme()">☀️ Light mode</button>
+  </header>
+
+  <!-- ── INPUT CARD ── -->
+  <div class="card">
+    <div class="card-title"><span>📥</span> Input — Base64 Encoded Data</div>
+
+    <!-- Textarea -->
+    <textarea
+      id="inputArea"
+      placeholder="Paste your Base64 encoded string here…"
+      oninput="onInputChange()"
+      spellcheck="false"
+    ></textarea>
+    <div class="char-count" id="inputCount">0 characters</div>
+
+    <!-- File Upload -->
+    <div
+      class="file-upload-zone"
+      id="dropZone"
+      onclick="document.getElementById('fileInput').click()"
+      ondragover="onDragOver(event)"
+      ondragleave="onDragLeave(event)"
+      ondrop="onDrop(event)"
+    >
+      <span class="upload-icon">📂</span>
+      Click to upload a Base64 text file, or drag &amp; drop here
+    </div>
+    <input type="file" id="fileInput" accept=".txt,.b64,.log,.text,text/plain" onchange="onFileSelected(event)">
+
+    <!-- File info badge -->
+    <div class="file-info" id="fileInfo">
+      <span>📄</span>
+      <span class="file-info-name" id="fileInfoName"></span>
+      <span class="file-info-size" id="fileInfoSize"></span>
+    </div>
+
+    <!-- Loading bar -->
+    <div class="loading-bar-wrap" id="loadingBar"><div class="loading-bar"></div></div>
+
+    <!-- Input status -->
+    <div class="status-msg" id="inputStatus"></div>
+
+    <!-- Action buttons -->
+    <div class="btn-row">
+      <button class="btn-primary" onclick="decodeBase64()">⚡ Decode</button>
+      <button class="btn-danger"  onclick="clearAll()">🗑 Clear All</button>
+    </div>
+  </div>
+
+  <!-- ── OUTPUT CARD ── -->
+  <div class="card">
+    <div class="card-title"><span>📤</span> Decoded Output</div>
+
+    <textarea
+      id="outputArea"
+      readonly
+      placeholder="Decoded output will appear here…"
+      spellcheck="false"
+    ></textarea>
+    <div class="char-count" id="outputCount">0 characters</div>
+
+    <!-- Output status (JSON validity etc.) -->
+    <div class="status-msg" id="outputStatus"></div>
+
+    <!-- Output action buttons -->
+    <div class="btn-row">
+      <button class="btn-secondary" id="btnCopy"         onclick="copyOutput()" disabled>📋 Copy</button>
+      <button class="btn-secondary" id="btnDownloadTxt"  onclick="downloadTxt()" disabled>⬇ Download .txt</button>
+      <button class="btn-success"   id="btnBeautify"     onclick="beautifyJSON()" disabled>✨ Beautify JSON</button>
+      <button class="btn-success"   id="btnDownloadJson" onclick="downloadJSON()" disabled style="display:none">⬇ Download .json</button>
+    </div>
+  </div>
+
+</div><!-- /app-wrapper -->
+
+<!-- Toast notification -->
+<div id="toast"></div>
+
+<script>
+/* ================================================================
+   BASE64 DECODER — Inline JavaScript
+   All logic here; no external libraries required.
+   ================================================================ */
+
+// ── State ──────────────────────────────────────────────────────────
+let decodedText   = '';   // Last decoded result (plain string)
+let beautifiedJSON = '';  // Last prettified JSON string
+let isDarkTheme   = true; // Tracks current theme
+
+// ── Theme toggle ───────────────────────────────────────────────────
+function toggleTheme() {
+  isDarkTheme = !isDarkTheme;
+  document.documentElement.setAttribute('data-theme', isDarkTheme ? 'dark' : 'light');
+  document.getElementById('themeToggle').textContent = isDarkTheme ? '☀️ Light mode' : '🌙 Dark mode';
+}
+
+// ── Input textarea change handler ──────────────────────────────────
+function onInputChange() {
+  const val = document.getElementById('inputArea').value;
+  updateCharCount('inputCount', val.length);
+  hideStatus('inputStatus');
+  // Reset file info when user types manually
+  if (val === '') hideFileInfo();
+}
+
+// ── Char count helper ──────────────────────────────────────────────
+function updateCharCount(elemId, count) {
+  const el = document.getElementById(elemId);
+  el.textContent = count.toLocaleString() + ' character' + (count !== 1 ? 's' : '');
+}
+
+// ── File upload — click / drag & drop ─────────────────────────────
+function onFileSelected(event) {
+  const file = event.target.files[0];
+  if (file) readFile(file);
+  // Reset input so same file can be re-selected
+  event.target.value = '';
+}
+function onDragOver(event) {
+  event.preventDefault();
+  document.getElementById('dropZone').classList.add('drag-over');
+}
+function onDragLeave() {
+  document.getElementById('dropZone').classList.remove('drag-over');
+}
+function onDrop(event) {
+  event.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag-over');
+  const file = event.dataTransfer.files[0];
+  if (file) readFile(file);
+}
+
+function readFile(file) {
+  // Show file info
+  document.getElementById('fileInfoName').textContent = file.name;
+  document.getElementById('fileInfoSize').textContent = formatBytes(file.size);
+  document.getElementById('fileInfo').classList.add('visible');
+
+  showLoading(true);
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('inputArea').value = e.target.result.trim();
+    onInputChange();
+    showLoading(false);
+    showStatus('inputStatus', 'success', `✅ File loaded: ${file.name}`);
+  };
+  reader.onerror = function() {
+    showLoading(false);
+    showStatus('inputStatus', 'error', '❌ Failed to read file.');
+  };
+  reader.readAsText(file);
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+function hideFileInfo() {
+  document.getElementById('fileInfo').classList.remove('visible');
+}
+
+// ── Loading bar ────────────────────────────────────────────────────
+function showLoading(visible) {
+  document.getElementById('loadingBar').classList.toggle('visible', visible);
+}
+
+// ── Status messages ────────────────────────────────────────────────
+function showStatus(elemId, type, message) {
+  const el = document.getElementById(elemId);
+  el.className = 'status-msg visible ' + type;
+  el.textContent = message;
+}
+function hideStatus(elemId) {
+  document.getElementById(elemId).className = 'status-msg';
+}
+
+// ── Main decode function ───────────────────────────────────────────
+function decodeBase64() {
+  const raw = document.getElementById('inputArea').value.trim();
+
+  // Validate non-empty
+  if (!raw) {
+    showStatus('inputStatus', 'error', '⚠️ Input is empty. Paste or upload Base64 data first.');
+    return;
+  }
+
+  // Show loading (useful for huge inputs)
+  showLoading(true);
+  hideStatus('inputStatus');
+  hideStatus('outputStatus');
+  resetOutputButtons();
+
+  // Use setTimeout(0) to yield to the browser so the loading bar renders
+  // before the (potentially heavy) decode work begins.
+  setTimeout(function() {
+    try {
+      // ── Strip Base64 data-URL prefix if present (e.g., "data:text/plain;base64,…")
+      let b64 = raw;
+      const dataUrlMatch = b64.match(/^data:[^;]+;base64,(.+)$/i);
+      if (dataUrlMatch) b64 = dataUrlMatch[1];
+
+      // ── Remove all whitespace (line breaks, spaces) — common in PEM / formatted b64
+      b64 = b64.replace(/\s/g, '');
+
+      // ── Validate characters  (Base64 alphabet + padding)
+      if (!/^[A-Za-z0-9+/]*={0,2}$/.test(b64)) {
+        throw new Error('Input contains invalid Base64 characters.');
+      }
+
+      // ── Decode
+      const decoded = atob(b64);
+
+      // ── Convert binary string → UTF-8 text
+      //    This handles multi-byte (unicode) encoded payloads correctly.
+      const uint8 = new Uint8Array(decoded.length);
+      for (let i = 0; i < decoded.length; i++) {
+        uint8[i] = decoded.charCodeAt(i);
+      }
+      decodedText = new TextDecoder('utf-8', { fatal: false }).decode(uint8);
+
+      // ── Update output area
+      document.getElementById('outputArea').value = decodedText;
+      updateCharCount('outputCount', decodedText.length);
+
+      showLoading(false);
+      showStatus('inputStatus', 'success', `✅ Decoded successfully — ${decodedText.length.toLocaleString()} characters`);
+
+      // Enable copy + download buttons
+      document.getElementById('btnCopy').disabled        = false;
+      document.getElementById('btnDownloadTxt').disabled = false;
+      document.getElementById('btnBeautify').disabled    = false;
+
+      // ── Auto-detect JSON and tell the user
+      if (looksLikeJSON(decodedText)) {
+        showStatus('outputStatus', 'success', '🎉 Decoded output looks like JSON. Click "Beautify JSON" to format it!');
+      }
+
+    } catch (err) {
+      showLoading(false);
+      decodedText = '';
+      document.getElementById('outputArea').value = '';
+      updateCharCount('outputCount', 0);
+      resetOutputButtons();
+
+      let msg = '❌ Decode failed: ';
+      if (err.message.includes('Invalid character') || err.message.includes('invalid Base64')) {
+        msg += 'Input contains invalid Base64 characters. Make sure it is properly encoded.';
+      } else {
+        msg += err.message;
+      }
+      showStatus('inputStatus', 'error', msg);
+    }
+  }, 0); // end setTimeout
+}
+
+// ── Quick JSON sniff (first non-whitespace char is { or [) ─────────
+function looksLikeJSON(str) {
+  const trimmed = str.trimStart();
+  return trimmed[0] === '{' || trimmed[0] === '[';
+}
+
+// ── Beautify JSON ──────────────────────────────────────────────────
+function beautifyJSON() {
+  if (!decodedText) return;
+
+  try {
+    const parsed = JSON.parse(decodedText);
+    beautifiedJSON = JSON.stringify(parsed, null, 2);
+    document.getElementById('outputArea').value = beautifiedJSON;
+    updateCharCount('outputCount', beautifiedJSON.length);
+    showStatus('outputStatus', 'success', '✅ JSON formatted successfully!');
+
+    // Show JSON download button
+    document.getElementById('btnDownloadJson').style.display = '';
+    document.getElementById('btnDownloadJson').disabled = false;
+  } catch (e) {
+    beautifiedJSON = '';
+    document.getElementById('btnDownloadJson').style.display = 'none';
+    showStatus('outputStatus', 'error', '❌ Not valid JSON: ' + e.message);
+  }
+}
+
+// ── Copy output to clipboard ───────────────────────────────────────
+function copyOutput() {
+  const text = document.getElementById('outputArea').value;
+  if (!text) return;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text)
+      .then(() => showToast('📋 Copied to clipboard!'))
+      .catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  // Fallback for older browsers
+  const ta = document.getElementById('outputArea');
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showToast('📋 Copied to clipboard!');
+  } catch (e) {
+    showToast('⚠️ Copy failed — please copy manually.', true);
+  }
+}
+
+// ── Download helpers ───────────────────────────────────────────────
+function downloadTxt() {
+  if (!decodedText) return;
+  triggerDownload(decodedText, 'decoded-output.txt', 'text/plain');
+}
+
+function downloadJSON() {
+  if (!beautifiedJSON) return;
+  triggerDownload(beautifiedJSON, 'decoded-output.json', 'application/json');
+}
+
+function triggerDownload(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('⬇ Download started: ' + filename);
+}
+
+// ── Clear everything ───────────────────────────────────────────────
+function clearAll() {
+  document.getElementById('inputArea').value  = '';
+  document.getElementById('outputArea').value = '';
+  decodedText    = '';
+  beautifiedJSON = '';
+  updateCharCount('inputCount',  0);
+  updateCharCount('outputCount', 0);
+  hideStatus('inputStatus');
+  hideStatus('outputStatus');
+  showLoading(false);
+  hideFileInfo();
+  resetOutputButtons();
+  showToast('🗑 Cleared!');
+}
+
+// ── Reset output button states ─────────────────────────────────────
+function resetOutputButtons() {
+  document.getElementById('btnCopy').disabled        = true;
+  document.getElementById('btnDownloadTxt').disabled = true;
+  document.getElementById('btnBeautify').disabled    = true;
+  document.getElementById('btnDownloadJson').disabled = true;
+  document.getElementById('btnDownloadJson').style.display = 'none';
+}
+
+// ── Toast notification ─────────────────────────────────────────────
+let toastTimeout;
+function showToast(message, isError) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.style.borderColor = isError ? 'var(--danger)' : 'var(--accent)';
+  toast.classList.add('show');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => toast.classList.remove('show'), 2800);
+}
+
+// ── Init ───────────────────────────────────────────────────────────
+// Set char counts on load
+updateCharCount('inputCount',  0);
+updateCharCount('outputCount', 0);
+</script>
+</body>
+</html>
